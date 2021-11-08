@@ -1,0 +1,30 @@
+
+`timescale 1ns / 10ps
+
+module alu(
+    input reg [31:0] op1,
+    input reg [31:0] op2,
+    input reg [2 :0] alu_op,
+    
+    output [31:0] alu_out
+);
+    
+    reg [31:0] result;
+    assign alu_out = result;
+    
+    always@(alu_op, op1, op2)
+        begin
+            case(alu_op)
+                0: result = op1 + op2;
+                1: result = op1 - op2;
+                2: result = op1 & op2;
+                3: result = op1 | op2;
+                4: result = op1 ^ op2;
+                5: result = op1 > op2;
+                6: result = op1 < op2;
+                7: result = op1 <<op2;
+                8: result = op1 >>op2;
+                
+            endcase
+        end
+endmodule
