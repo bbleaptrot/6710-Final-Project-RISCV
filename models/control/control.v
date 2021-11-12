@@ -1,11 +1,10 @@
-module control(clk, rst, instruction, reg_en, reg_or_imm_mux, data_read, data_write, alu_op_code, alu_data_mux, pc_mux, reg_write/* state_counter*/);
+module control(clk, rst, instruction, reg_or_imm_mux, data_read, data_write, alu_op_code, alu_data_mux, pc_mux, reg_write, pc_en/* state_counter*/);
 
 input clk, rst;
 input [31:0] instruction;
 
-output reg [4:0] reg_en;
 output reg [3:0] alu_op_code;
-output reg reg_or_imm_mux, data_read, data_write, alu_data_mux, pc_mux, reg_write;
+output reg reg_or_imm_mux, data_read, data_write, alu_data_mux, pc_mux, reg_write, pc_en;
 
 reg [3:0] state_counter = 4'b0000;
 
@@ -74,7 +73,7 @@ always @(posedge clk)
  begin
 	case(state_counter)
 		0: begin // Fetch stage
-				reg_en        = 5'h0; // Data isn't getting written back in this stage
+				
 				alu_op_code   = 4'b0000;
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
@@ -82,10 +81,11 @@ always @(posedge clk)
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b0;
 				reg_write     = 1'b0;
+				pc_en         = 1'b0;
 				
 			end
 		1: begin // Decode Stage
-				reg_en        = 5'h0; // Data isn't getting written back in this stage
+				
 				alu_op_code   = 4'b0000;
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
@@ -93,22 +93,32 @@ always @(posedge clk)
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b0; 
 				reg_write     = 1'b0;
+				pc_en         = 1'b0;
 				
 			end
 		2: begin // R-Type
-				reg_en        = instruction[11:7]; 
+				
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
 				data_write    = 1'b0;
 				reg_write     = 1'b1;
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b0;
-				if(instruction[6:0] == IMM_TO_REG ||
-					instruction[6:0] == LUI_TO_REG ||
-					instruction[6:0] == AUIPC_TO_REG) 
+				pc_en         = 1'b1;
+				if(instruction[6:0] == IMM_TO_REG) 
 					begin
 						reg_or_imm_mux = 1'b1;
-						alu_op_code = {instruction[30], instruction[14:12]};
+						alu_op_code = 4'b1011;
+					end
+				else if (instruction[6:0] == LUI_TO_REG)
+					begin
+						reg_or_imm_mux = 1'b1;
+						alu_op_code = 4'd9;
+					end
+				else if (instruction[6:0] == AUIPC_TO_REG)
+					begin
+						reg_or_imm_mux = 1'b1;
+						alu_op_code = 4'd10;
 					end
 				else 
 				begin
@@ -118,18 +128,19 @@ always @(posedge clk)
 				
 			end
 		3: begin // Store into memory
-				reg_en        = 5'b0; // Data isn't getting written back in this stage
-				alu_op_code   = 4'b0000; // Need to find out what no op or push Rs1 through
+				
+				alu_op_code   = 4'b1010; // Need to find out what no op or push Rs1 through
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
 				data_write    = 1'b1;
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b0;
 				reg_write     = 1'b0;
+				pc_en         = 1'b1;
 				
 			end
 		4: begin // Load
-				reg_en        = instruction[11:7]; // Data isn't getting written back in this stage
+				
 				alu_op_code   = 4'b0000;
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b1;
@@ -137,9 +148,10 @@ always @(posedge clk)
 				alu_data_mux  = 1'b1;
 				pc_mux        = 1'b0;
 				reg_write     = 1'b1;
+				pc_en         = 1'b1;
 			end
 		5: begin // Branch
-				reg_en        = 5'h0; // Data isn't getting written back in this stage
+				
 				alu_op_code   = {1'b0, instruction[14:12]};
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
@@ -147,10 +159,10 @@ always @(posedge clk)
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b1;
 				reg_write     = 1'b0;
-				
+				pc_en         = 1'b1;
 			end
 		6: begin // Jump
-				reg_en        = 5'h0; // Data isn't getting written back in this stage
+				
 				alu_op_code   = 4'b0000;
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
@@ -158,16 +170,17 @@ always @(posedge clk)
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b0;
 				reg_write     = 1'b1;
-				
+				pc_en         = 1'b1;
 			end
 		default: begin
-				reg_en        = 5'h0; // Data isn't getting written back in this stage
+				
 				alu_op_code   = 4'b0000;
 				reg_or_imm_mux= 1'b0;
 				data_read     = 1'b0;
 				data_write    = 1'b0;
 				alu_data_mux  = 1'b0;
 				pc_mux        = 1'b0;
+				pc_en         = 1'b0;
 			end
 	endcase
  end
